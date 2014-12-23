@@ -16,6 +16,7 @@ class SBuild(implicit _project: Project) {
     "sbuild-http-plugin/org.sbuild.plugins.http",
     "sbuild-unzip-plugin/org.sbuild.plugins.unzip",
     "org.sbuild.runner.bootstrap"
+//    "org.sbuild.tester"
   )
 
   Target("phony:clean") dependsOn modules.map(m => m("clean"))

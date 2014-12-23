@@ -7,6 +7,7 @@ import org.sbuild.Project
 import org.sbuild.Target
 import org.sbuild.TargetContext
 import org.sbuild.TargetRef
+import org.sbuild.Logger
 
 class TargetContextImpl(
   override val target: Target,
@@ -15,6 +16,7 @@ class TargetContextImpl(
     extends TargetContext {
 
   override def name = target.name
+  private[this] val log = Logger[TargetContextImpl]
 
   /**
    * The file this targets produces, or <code>None</code> if this target is phony.
@@ -96,6 +98,7 @@ class TargetContextImpl(
   }
   private[sbuild] def attachFileWithoutLastModifiedCheck(files: Seq[File]) {
     files.foreach { file =>
+      log.debug(s"${target.formatRelativeToBaseProject}: Attaching file: ${file}")
       if (!file.exists)
         throw new FileNotFoundException(s"""Attached file "${file.getPath}" does not exist.""")
     }

@@ -14,6 +14,8 @@ import org.sbuild.runner.ClasspathConfig
 import org.sbuild.runner.FileLocker
 import org.sbuild.runner.SimpleProjectReader
 import org.sbuild.ProjectReader
+import scala.util.Failure
+import scala.util.Success
 
 object SBuildEmbedded {
   private[embedded] def debug(msg: => String) = Console.println(msg)
@@ -70,6 +72,8 @@ trait EmbeddedResolver {
 
   def exportedDependencies(exportName: String): Seq[String]
 
+  def exportedDependenciesFromTarget(targetName: String): TargetTree
+
   /**
    * Resolve the given dependency.
    */
@@ -82,7 +86,10 @@ object EmbeddedResolver {
 
 }
 
+case class TargetTree(targetName: Try[String], childs: Seq[TargetTree] = Seq())
+
 class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
+  import SBuildEmbedded._
   //
   //  import EmbeddedResolver._
   //  
@@ -94,9 +101,37 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
 
   override def exportedDependencies(exportName: String): Seq[String] = {
     val depsXmlString = project.properties.getOrElse(exportName, "<deps></deps>")
-    SBuildEmbedded.debug("Determine Eclipse classpath by evaluating '" + exportName + "' to: " + depsXmlString)
+    debug("Determine exported dependencies by evaluating '" + exportName + "' to: " + depsXmlString)
     val depsXml = XML.loadString(depsXmlString)
     (depsXml \ "dep") map { _.text }
+  }
+
+  override def exportedDependenciesFromTarget(targetName: String): TargetTree = {
+
+    def expandTree(targetRef: TargetRef): TargetTree = {
+      implicit val targetProject = targetRef.safeTargetProject
+      debug(s"About to inspect: ${targetRef}")
+      targetProject.determineRequestedTarget(targetRef, searchInAllProjects = true, supportCamelCaseShortCuts = false) match {
+        case None =>
+          // not found
+          // if an existing file, then proceed.
+          targetRef.explicitProto match {
+            case None | Some("file") if targetRef.explicitProject == None => // && Path(targetRef.nameWithoutProto).exists =>
+              TargetTree(Success(targetRef.name))
+            case _ =>
+              TargetTree(Failure(new TargetNotFoundException(s"""Could not find target with name "${targetRef.name}" in project ${targetProject.projectFile}.""")))
+          }
+        case Some(target) =>
+          target.action match {
+            case null => TargetTree(Success(target.formatRelativeTo(project)), target.dependants.targetRefs map (expandTree))
+            case _ => TargetTree(Success(target.formatRelativeTo(project)))
+          }
+      }
+    }
+
+    implicit val _baseProject = project
+    val targetRef = TargetRef(targetName)
+    expandTree(targetRef)
   }
 
   /**

@@ -16,7 +16,7 @@ trait CmdlineMonitor {
   def warn(msg: => String)
   def warn(when: OutputMode, msg: => String)
 
-  /* Show a information to the user. */
+  /** Show a information to the user. */
   def info(msg: => String)
   def info(when: OutputMode, msg: => String)
 

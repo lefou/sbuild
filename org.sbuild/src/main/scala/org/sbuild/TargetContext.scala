@@ -50,9 +50,10 @@ trait TargetContext {
   def attachedFiles: Seq[File]
   /**
    * Attach additional files to this target context. The file must exists!
+   * @thows java.io.FileNotFoundException If the file does not exists.
    */
   def attachFile(file: File)
-  
+
   def targetFiles: Seq[File] = targetFile.toSeq ++ attachedFiles
 
 }
